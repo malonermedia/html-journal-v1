@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Simple Diary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        /* Custom scrollbar for better aesthetics */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #e5e7eb;
+            border-radius: 10px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center p-4 min-h-screen">
+    <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl mx-auto transition-all hover:shadow-xl">
+        <!-- Header Section -->
+        <div class="flex flex-col items-center mb-6">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">My Simple Diary</h1>
+            <div id="dateDisplay" class="text-gray-500 font-medium"></div>
+        </div>
+
+        <!-- Diary Entry Input -->
+        <div class="mb-6">
+            <textarea id="diaryEntry"
+                      class="w-full h-48 p-4 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      placeholder="What's on your mind today?"></textarea>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex justify-between items-center mb-6">
+            <!-- Save Button -->
+            <button id="saveButton"
+                    class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-full shadow-md hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Save
+            </button>
+            
+            <!-- Message Display -->
+            <div id="messageBox" class="text-sm text-center font-medium opacity-0 transition-opacity duration-300"></div>
+
+            <!-- Download Button -->
+            <button id="downloadButton"
+                    class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-full shadow-md hover:bg-gray-300 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
+                Download
+            </button>
+        </div>
+
+        <!-- Previous Entries Section -->
+        <div class="mt-8 border-t border-gray-200 pt-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Previous Entries</h2>
+            <div id="entriesList" class="space-y-4">
+                <!-- Entries will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dateDisplay = document.getElementById('dateDisplay');
+            const diaryEntry = document.getElementById('diaryEntry');
+            const saveButton = document.getElementById('saveButton');
+            const messageBox = document.getElementById('messageBox');
+            const entriesList = document.getElementById('entriesList');
+            const downloadButton = document.getElementById('downloadButton');
+
+            // Set the current date display
+            const today = new Date();
+            const todayKey = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            dateDisplay.textContent = today.toLocaleDateString('en-US', options);
+
+            // Function to load and display all entries from Local Storage
+            function loadEntries() {
+                entriesList.innerHTML = '';
+                const allEntries = [];
+                // Loop through local storage to find all diary entries
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    // We only want to process keys that start with 'diary_'
+                    if (key.startsWith('diary_')) {
+                        try {
+                            const entry = JSON.parse(localStorage.getItem(key));
+                            allEntries.push(entry);
+                        } catch (e) {
+                            console.error(`Error parsing entry for key ${key}:`, e);
+                        }
+                    }
+                }
+
+                // Sort entries by date, from newest to oldest
+                allEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // Render each entry on the page
+                allEntries.forEach(entry => {
+                    const entryElement = document.createElement('div');
+                    entryElement.className = 'bg-gray-100 p-4 rounded-lg shadow-sm transition-all hover:bg-gray-200';
+                    
+                    const entryDate = document.createElement('div');
+                    const entryDateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+                    entryDate.className = 'text-sm text-gray-500 font-semibold mb-2';
+                    entryDate.textContent = new Date(entry.date).toLocaleDateString('en-US', entryDateOptions);
+                    
+                    const entryText = document.createElement('p');
+                    entryText.className = 'text-gray-700 whitespace-pre-wrap';
+                    entryText.textContent = entry.text;
+
+                    entryElement.appendChild(entryDate);
+                    entryElement.appendChild(entryText);
+                    entriesList.appendChild(entryElement);
+                });
+
+                // Load today's entry into the textarea for editing
+                const todayEntry = localStorage.getItem(`diary_${todayKey}`);
+                if (todayEntry) {
+                    diaryEntry.value = JSON.parse(todayEntry).text;
+                }
+            }
+
+            // Event listener for the Save button
+            saveButton.addEventListener('click', () => {
+                const text = diaryEntry.value.trim();
+                if (text) {
+                    const entry = {
+                        date: todayKey,
+                        text: text
+                    };
+                    // Store the entry in local storage with a unique key
+                    localStorage.setItem(`diary_${todayKey}`, JSON.stringify(entry));
+                    
+                    // Show a success message
+                    messageBox.textContent = 'Entry saved successfully!';
+                    messageBox.classList.add('text-green-600');
+                    messageBox.classList.remove('text-red-600', 'opacity-0');
+                    setTimeout(() => messageBox.classList.add('opacity-0'), 2000);
+
+                    // Refresh the list of entries
+                    loadEntries();
+                } else {
+                    // Show a warning message
+                    messageBox.textContent = 'Please write something to save.';
+                    messageBox.classList.add('text-red-600');
+                    messageBox.classList.remove('text-green-600', 'opacity-0');
+                    setTimeout(() => messageBox.classList.add('opacity-0'), 2000);
+                }
+            });
+
+            // Event listener for the Download button
+            downloadButton.addEventListener('click', () => {
+                const allEntries = [];
+                // Loop through local storage to get all diary entries
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith('diary_')) {
+                        try {
+                            const entry = JSON.parse(localStorage.getItem(key));
+                            allEntries.push(entry);
+                        } catch (e) {
+                            console.error(`Error parsing entry for key ${key}:`, e);
+                        }
+                    }
+                }
+                
+                // Sort entries by date ascending for a chronological log
+                allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                let content = 'My Diary Entries\n\n';
+                allEntries.forEach(entry => {
+                    const entryDateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                    const formattedDate = new Date(entry.date).toLocaleDateString('en-US', entryDateOptions);
+                    content += `--- ${formattedDate} ---\n\n${entry.text}\n\n`;
+                });
+                
+                // Create a Blob and a download link to save the file
+                const blob = new Blob([content], { type: 'text/plain' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `Journal Entry.txt`; // Set the new file name
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
+
+            // Initial load of entries when the page is ready
+            loadEntries();
+        });
+    </script>
+</body>
+</html>
